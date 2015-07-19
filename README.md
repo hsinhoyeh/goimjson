@@ -3,7 +3,6 @@ a Go Package for maintaining immutable json object
 
 The immutable property means that every change to the object will result in a version number.
 As long as you can hold a version number, you can always retrieve the object back even though the object is mutated by someone else
-*/
 
 ### Importing
 ```
