@@ -13,6 +13,6 @@ var (
 )
 
 func main() {
-	log.Print("listen :%v\n", *port)
+	log.Printf("listen :%v\n", *port)
 	log.Fatal(imjHTTP.ListenAndServe(fmt.Sprintf(":%v", *port)))
 }

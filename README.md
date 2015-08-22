@@ -8,7 +8,7 @@ As long as you can hold a version number, you can always retrieve the object bac
 ```
     import github.com/hsinhoyeh/goimjson
 ```
-### Usage
+### Usage (as a library)
 ```
 package main
 
@@ -26,3 +26,26 @@ func main() {
 }
 ```
 see testcase for more.
+
+
+### Usage (as a service)
+```
+cd github.com/hsinhoyeh/goimjson/http/server
+go run server.go
+
+// then use post to write data
+curl -X POST -H "Content-Type: application/json" http://localhost:9000 -d '{"bar":"bar","foo":"foo"}'
+
+// the response will be a json with version field
+{
+  "ver": "4592134183702187642"
+}
+
+// then use get to retrieve data
+curl -X GET http://localhost:9000/4592134183702187642
+{
+  "bar": "bar",
+  "foo": "foo"
+}
+
+```
