@@ -2,6 +2,7 @@ package goimjson
 
 import (
 	"fmt"
+	"sync"
 
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/spaolacci/murmur3"
@@ -15,18 +16,21 @@ const (
 type ImJSON struct {
 
 	// data is a simplejson data
-	data *simplejson.Json
+	data          *simplejson.Json
+	latestVersion string
+	// mu is used to protect data and latestVersion from
+	// modified by multiple goroutines
+	mu *sync.Mutex
 
 	// versionRepo holds all chagnes into a repo
 	versionRepo Repo
-
-	latestVersion string
 }
 
 // New returns a pointer to ImJSON
 func New() (*ImJSON, error) {
 	return &ImJSON{
 		data:        simplejson.New(),
+		mu:          &sync.Mutex{},
 		versionRepo: NewMapRepo()}, nil
 }
 
@@ -38,23 +42,33 @@ func NewWithBody(body []byte) (*ImJSON, error) {
 	}
 	return &ImJSON{
 		data:        d,
+		mu:          &sync.Mutex{},
 		versionRepo: NewMapRepo(),
 	}, nil
 }
 
 // Interface returns the underlying json data
 func (i *ImJSON) Interface() interface{} {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	return i.data.Interface()
 }
 
 // Encode encodes the underlying json data into byte slice
 func (i *ImJSON) Encode() ([]byte, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	return i.data.Encode()
 }
 
 // Set modify the ImJSON by setting a key and a value to it
 // The write operation will result in a version which can be used to lookup the original json data
 func (i *ImJSON) Set(key string, val interface{}) (version string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	// we modify the json data first, and then update to allVersions
 	i.data.Set(key, val)
 	return i.addVersions()
@@ -62,13 +76,23 @@ func (i *ImJSON) Set(key string, val interface{}) (version string) {
 
 // GetLatest get the latest version with the key
 func (i *ImJSON) GetLatest(key string) (*ImJSON, error) {
-	return i.Get(i.latestVersion, key)
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	return i.get(i.latestVersion, key)
 }
 
 // Get retrieves a key from a json object with a specific version
 // the returned value will be a pointer of ImJSON
 // TODO: do we need to pass all versions into the newly created ImJSON?
 func (i *ImJSON) Get(version string, key string) (*ImJSON, error) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	return i.get(version, key)
+}
+
+func (i *ImJSON) get(version string, key string) (*ImJSON, error) {
 	vBSlice := i.versionRepo.Lookup(version)
 	if len(vBSlice) < 1 {
 		return nil, nil // nil represents that the version or key is not found
